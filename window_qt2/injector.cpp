@@ -35,9 +35,9 @@ BOOL InjectDll(DWORD pid, const char* dllPath) {
 
     // 2. 在目标进程分配内存，写入DLL路径
     size_t pathLen = strlen(dllPath) + 1;
-    LPVOID remoteMem = VirtualAllocEx(hProcess, NULL, pathLen, 
-                                       MEM_COMMIT | MEM_RESERVE, 
-                                       PAGE_READWRITE);
+    LPVOID remoteMem = VirtualAllocEx(hProcess, NULL, pathLen,
+        MEM_COMMIT | MEM_RESERVE,
+        PAGE_READWRITE);
     if (!remoteMem) {
         printf("VirtualAllocEx 失败!\n");
         CloseHandle(hProcess);
@@ -50,9 +50,9 @@ BOOL InjectDll(DWORD pid, const char* dllPath) {
     FARPROC loadLib = GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
 
     // 4. 创建远程线程执行 LoadLibraryA(dllPath)
-    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, 
-                                         (LPTHREAD_START_ROUTINE)loadLib, 
-                                         remoteMem, 0, NULL);
+    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0,
+        (LPTHREAD_START_ROUTINE)loadLib,
+        remoteMem, 0, NULL);
     if (!hThread) {
         printf("CreateRemoteThread 失败! 错误码: %lu\n", GetLastError());
         VirtualFreeEx(hProcess, remoteMem, 0, MEM_RELEASE);
@@ -72,17 +72,29 @@ BOOL InjectDll(DWORD pid, const char* dllPath) {
 }
 
 int main(int argc, char* argv[]) {
-    printf("=== Qt01 登录按钮点击工具 ===\n\n");
+    printf("=== 千牛工作台 登录按钮点击工具 ===\n\n");
 
-    // 查找 qt_01.exe 进程
-    DWORD pid = FindProcessId("qt_01.exe");
+    // 依次尝试查找千牛进程
+    const char* processNames[] = { "AliWorkbench.exe", "QianNiu.exe", NULL };
+    DWORD pid = 0;
+    const char* foundName = NULL;
+
+    for (int i = 0; processNames[i]; i++) {
+        pid = FindProcessId(processNames[i]);
+        if (pid) {
+            foundName = processNames[i];
+            break;
+        }
+    }
+
     if (!pid) {
-        printf("找不到 qt_01.exe 进程!\n");
-        printf("请先启动 Qt01 程序\n");
+        printf("找不到千牛工作台进程!\n");
+        printf("请先启动千牛工作台\n");
+        printf("（尝试过的进程名: AliWorkbench.exe, QianNiu.exe）\n");
         system("pause");
         return 1;
     }
-    printf("找到 qt_01.exe, PID: %lu\n", pid);
+    printf("找到千牛进程 (%s), PID: %lu\n", foundName, pid);
 
     // DLL路径（改成你的实际路径）
     char dllPath[MAX_PATH];
@@ -93,7 +105,8 @@ int main(int argc, char* argv[]) {
     printf("正在注入...\n");
     if (InjectDll(pid, dllPath)) {
         printf("注入成功! DLL已加载到目标进程\n");
-    } else {
+    }
+    else {
         printf("注入失败!\n");
     }
 
